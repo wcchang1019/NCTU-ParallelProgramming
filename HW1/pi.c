@@ -2,13 +2,15 @@
 #include <stdlib.h>
 #include <time.h>
 #include <pthread.h>
-unsigned  long long ans[100]={0};
+
 
 typedef struct _thread_data_t {
     int tid;
     unsigned long long stuff;
 } thread_data_t;
 
+unsigned long long number_in_circle=0;
+pthread_mutex_t mutex;
 void *child(void *arg) {
     thread_data_t data = *(thread_data_t *)arg;
     double distance_squared, x, y;
@@ -22,7 +24,9 @@ void *child(void *arg) {
         distance_squared = x*x + y*y;
         if (distance_squared <= 1.0) in_circle++;
     }
-    ans[data.tid] = in_circle;
+    pthread_mutex_lock(&mutex);
+    number_in_circle += in_circle;
+    pthread_mutex_unlock(&mutex);
     pthread_exit(NULL);
 }
 
@@ -30,7 +34,7 @@ int main(int argc, char **argv)
 {
     srand(time(NULL));
     double pi_estimate;
-    unsigned long long  number_of_cpu, number_of_tosses, number_in_circle;
+    unsigned long long  number_of_cpu, number_of_tosses;
     if ( argc < 2) {
         exit(-1);
     }
@@ -44,6 +48,7 @@ int main(int argc, char **argv)
     }
     pthread_t all_thread[number_of_cpu];
     thread_data_t t_data[number_of_cpu];
+    pthread_mutex_init(&mutex, 0);
     for(int i=0;i<number_of_cpu;i++) {
         t_data[i].tid=i;
         t_data[i].stuff=number_of_tosses/number_of_cpu;
@@ -52,11 +57,8 @@ int main(int argc, char **argv)
     for(int i=0;i<number_of_cpu;i++) {
         pthread_join(all_thread[i], NULL);
     }
-    number_in_circle=0;
-    for(int i=0;i<number_of_cpu;i++) {
-        number_in_circle+=ans[i];
-    }
     pi_estimate = 4*number_in_circle/((double) number_of_tosses);
     printf("%f\n",pi_estimate);
+    pthread_mutex_destroy(&mutex);
     return 0;
 }
